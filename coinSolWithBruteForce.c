@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 /**
  * M 금액
  * d 금액 단위 갯수
@@ -12,7 +13,7 @@ int* function(int M, int d, int c[]) {
     }
 
     // 최소 동전 갯수: 처음에는 무한대처럼 설정
-    int smallestNumberOfCoins = __INT_MAX__;
+    int smallestNumberOfCoins = INT_MAX;
 
     // 가능한 모든 조합 (k1, k2, k3, k4, k5)를 확인
     // 각 동전 i는 최대 M / c[i]개까지 사용할 수 있음: 총 금액을 해당 단위로 나눈 값
