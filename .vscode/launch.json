@@ -1,6 +1,27 @@
 {
     "configurations": [
         {
+            "type": "java",
+            "name": "matzipDistance",
+            "request": "launch",
+            "mainClass": "matzipDistance",
+            "projectName": "STUDY-Algorithm_a0427966"
+        },
+        {
+            "type": "java",
+            "name": "stablizeCore",
+            "request": "launch",
+            "mainClass": "stablizeCore",
+            "projectName": "STUDY-Algorithm_a0427966"
+        },
+        {
+            "type": "java",
+            "name": "test",
+            "request": "launch",
+            "mainClass": "test",
+            "projectName": "STUDY-Algorithm_a0427966"
+        },
+        {
             "name": "C/C++: gcc.exe 활성 파일 빌드 및 디버그",
             "type": "cppdbg",
             "request": "launch",
