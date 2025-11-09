@@ -1,7 +1,5 @@
-#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 typedef enum { RED, BLACK } color_t;
 
@@ -9,44 +7,39 @@ typedef struct Node {
     int key;
     color_t color;
     struct Node* left, * right, * parent;
-    /* layout info for visualization */
-    int x;   // column position
-    int y;   // depth (level)
 } Node;
 
-/* Global sentinel and root */
 Node* NIL;
 Node* ROOT;
 
-/* ----- utility/new/init ----- */
-Node* new_node(int key) {
-    Node* n = (Node*)malloc(sizeof(Node));
-    if (!n) { fprintf(stderr, "malloc failed\n"); exit(1); }
-    n->key = key;
-    n->color = RED;
-    n->left = n->right = n->parent = NIL;
-    n->x = n->y = 0;
-    return n;
-}
-
-void tree_init(void) {
+/* 초기화 및 유틸 */
+void tree_init() {
     NIL = (Node*)malloc(sizeof(Node));
-    if (!NIL) { fprintf(stderr, "malloc failed\n"); exit(1); }
     NIL->color = BLACK;
     NIL->left = NIL->right = NIL->parent = NIL;
-    NIL->x = NIL->y = 0;
     ROOT = NIL;
 }
 
-/* ----- rotations ----- */
+Node* new_node(int key) {
+    Node* n = (Node*)malloc(sizeof(Node));
+    n->key = key;
+    n->color = RED;
+    n->left = n->right = n->parent = NIL;
+    return n;
+}
+
+/* 회전 */
 void left_rotate(Node** Troot, Node* x) {
     Node* y = x->right;
     x->right = y->left;
     if (y->left != NIL) y->left->parent = x;
     y->parent = x->parent;
-    if (x->parent == NIL) *Troot = y;
-    else if (x == x->parent->left) x->parent->left = y;
-    else x->parent->right = y;
+    if (x->parent == NIL)
+        *Troot = y;
+    else if (x == x->parent->left)
+        x->parent->left = y;
+    else
+        x->parent->right = y;
     y->left = x;
     x->parent = y;
 }
@@ -56,14 +49,17 @@ void right_rotate(Node** Troot, Node* y) {
     y->left = x->right;
     if (x->right != NIL) x->right->parent = y;
     x->parent = y->parent;
-    if (y->parent == NIL) *Troot = x;
-    else if (y == y->parent->right) y->parent->right = x;
-    else y->parent->left = x;
+    if (y->parent == NIL)
+        *Troot = x;
+    else if (y == y->parent->right)
+        y->parent->right = x;
+    else
+        y->parent->left = x;
     x->right = y;
     y->parent = x;
 }
 
-/* ----- insert & fixup ----- */
+/* 삽입 */
 void rb_insert_fixup(Node** Troot, Node* z) {
     while (z->parent->color == RED) {
         if (z->parent == z->parent->parent->left) {
@@ -111,7 +107,8 @@ void rb_insert(Node** Troot, Node* z) {
     Node* x = *Troot;
     while (x != NIL) {
         y = x;
-        if (z->key < x->key) x = x->left; else x = x->right;
+        if (z->key < x->key) x = x->left;
+        else x = x->right;
     }
     z->parent = y;
     if (y == NIL) *Troot = z;
@@ -122,12 +119,16 @@ void rb_insert(Node** Troot, Node* z) {
     rb_insert_fixup(Troot, z);
 }
 
-/* ----- transplant / minimum ----- */
+/* 삭제 보조 */
 void rb_transplant(Node** Troot, Node* u, Node* v) {
-    if (u->parent == NIL) *Troot = v;
-    else if (u == u->parent->left) u->parent->left = v;
-    else u->parent->right = v;
-    v->parent = u->parent;
+    if (u->parent == NIL)
+        *Troot = v;
+    else if (u == u->parent->left)
+        u->parent->left = v;
+    else
+        u->parent->right = v;
+    if (v != NIL)                // <-- 중요 수정: v가 NIL이면 parent를 바꾸지 않는다
+        v->parent = u->parent;
 }
 
 Node* tree_minimum(Node* x) {
@@ -135,7 +136,6 @@ Node* tree_minimum(Node* x) {
     return x;
 }
 
-/* ----- delete & fixup ----- */
 void rb_delete_fixup(Node** Troot, Node* x) {
     while (x != *Troot && x->color == BLACK) {
         if (x == x->parent->left) {
@@ -194,10 +194,13 @@ void rb_delete_fixup(Node** Troot, Node* x) {
     x->color = BLACK;
 }
 
+/* rb_delete: 삭제 대상 해제는 fixup 이후에 수행 */
 void rb_delete(Node** Troot, Node* z) {
     Node* y = z;
     color_t y_original_color = y->color;
     Node* x;
+    Node* to_free = z; // 해제할 노드(안전하게 마지막에 free)
+
     if (z->left == NIL) {
         x = z->right;
         rb_transplant(Troot, z, z->right);
@@ -212,6 +215,7 @@ void rb_delete(Node** Troot, Node* z) {
         x = y->right;
         if (y->parent == z) {
             x->parent = y;
+            // y가 z의 직속 오른쪽 자식인 경우 (transplant 필요 없음)
         }
         else {
             rb_transplant(Troot, y, y->right);
@@ -222,190 +226,95 @@ void rb_delete(Node** Troot, Node* z) {
         y->left = z->left;
         y->left->parent = y;
         y->color = z->color;
+        to_free = z; // z를 해제
     }
-    free(z);
-    if (y_original_color == BLACK) rb_delete_fixup(Troot, x);
+
+    if (y_original_color == BLACK) {
+        rb_delete_fixup(Troot, x);
+    }
+
+    // 이제 안전하게 메모리 해제
+    free(to_free);
 }
 
-/* ----- search helper ----- */
+/* 탐색 */
 Node* tree_search(Node* root, int key) {
     Node* x = root;
     while (x != NIL && key != x->key) {
-        if (key < x->key) x = x->left; else x = x->right;
+        if (key < x->key) x = x->left;
+        else x = x->right;
     }
     return x;
 }
 
-/* ------------------ Visualization ------------------
-   Layout approach:
-   - Inorder traversal assigns increasing x positions (counter).
-   - y = depth.
-   - Canvas sized from node count and depth.
-   - Draw node labels "key(R/B)" at (row=y*3, col=x).
-   - Draw connectors '/' '\' and draw "NIL" where child == NIL.
-----------------------------------------------------*/
-
-typedef struct {
-    int cols;
-    int rows;
-    char** buf;
-} Canvas;
-
-Canvas make_canvas(int rows, int cols) {
-    Canvas c;
-    c.rows = rows;
-    c.cols = cols;
-    c.buf = (char**)malloc(rows * sizeof(char*));
-    for (int r = 0; r < rows; ++r) {
-        c.buf[r] = (char*)malloc(cols + 1);
-        for (int j = 0; j < cols; ++j) c.buf[r][j] = ' ';
-        c.buf[r][cols] = '\0';
+/* 간단한 레벨 출력 (배열 큐 사용) */
+void print_tree_by_level(Node* root) {
+    if (root == NIL) {
+        printf("(empty tree)\n");
+        return;
     }
-    return c;
-}
 
-void free_canvas(Canvas* c) {
-    for (int r = 0; r < c->rows; ++r) free(c->buf[r]);
-    free(c->buf);
-}
+    const int MAX_DEPTH = 6;
+    const int MAX_NODES = 1 << (MAX_DEPTH + 1); // 여유 사이즈
+    Node* queue[MAX_NODES];
+    int front = 0, rear = 0;
 
-void print_canvas(Canvas* c) {
-    for (int r = 0; r < c->rows; ++r) {
-        printf("%s\n", c->buf[r]);
-    }
-}
+    queue[rear++] = root;
+    int level = 0;
 
-/* layout assignment (inorder index -> x) */
-int layout_counter;
-int max_depth;
+    while (front < rear && level < MAX_DEPTH) {
+        int levelCount = rear - front;
+        int spacing = (1 << (MAX_DEPTH - level));
 
-void assign_positions(Node* n, int depth, int spacing) {
-    if (n == NIL) return;
-    if (depth > max_depth) max_depth = depth;
-    assign_positions(n->left, depth + 1, spacing);
-    layout_counter++;
-    n->x = layout_counter * spacing;
-    n->y = depth;
-    assign_positions(n->right, depth + 1, spacing);
-}
+        for (int i = 0; i < spacing / 2; ++i) printf(" ");
 
-/* put string into canvas with boundary check */
-void canvas_put(Canvas* c, int row, int col, const char* s) {
-    if (row < 0 || row >= c->rows) return;
-    int len = (int)strlen(s);
-    for (int i = 0; i < len; ++i) {
-        int cc = col + i;
-        if (cc >= 0 && cc < c->cols) c->buf[row][cc] = s[i];
+        for (int i = 0; i < levelCount; ++i) {
+            Node* node = queue[front++];
+            if (node != NULL && node != NIL) {
+                printf("%d(%c)", node->key, (node->color == RED ? 'R' : 'B'));
+                queue[rear++] = node->left;
+                queue[rear++] = node->right;
+            }
+            else {
+                printf(".");
+                queue[rear++] = NULL;
+                queue[rear++] = NULL;
+            }
+            for (int s = 0; s < spacing; ++s) printf(" ");
+        }
+        printf("\n");
+        level++;
     }
 }
 
-/* draw connectors between parent and child */
-void draw_connection(Canvas* c, int prow, int pcol, int crow, int ccol) {
-    if (prow == crow) return;
-    int dr = crow - prow;
-    int dc = ccol - pcol;
-    // simple diagonal-ish: place '/' or '\' at one row below parent and one col towards child
-    if (dc < 0) {
-        // left child: put '/' a cell below-left and possibly vertical '|'
-        int rr = prow + 1;
-        int cc = pcol - 1;
-        if (rr >= 0 && rr < c->rows && cc >= 0 && cc < c->cols) c->buf[rr][cc] = '/';
-    }
-    else if (dc > 0) {
-        int rr = prow + 1;
-        int cc = pcol + 1;
-        if (rr >= 0 && rr < c->rows && cc >= 0 && cc < c->cols) c->buf[rr][cc] = '\\';
-    }
-}
-
-/* draw nil marker at given position */
-void draw_nil(Canvas* c, int row, int col) {
-    canvas_put(c, row, col, "NIL");
-}
-
-/* recursive drawing */
-void draw_tree(Canvas* c, Node* n) {
-    if (n == NIL) return;
-    int row = n->y * 3;
-    int col = n->x;
-    char label[32];
-    sprintf(label, "%d(%c)", n->key, (n->color == RED ? 'R' : 'B'));
-    canvas_put(c, row, col, label);
-
-    // left child
-    if (n->left != NIL) {
-        int crow = n->left->y * 3;
-        int ccol = n->left->x;
-        draw_connection(c, row, col, crow, ccol);
-        draw_tree(c, n->left);
-    }
-    else {
-        // draw NIL under left
-        int nilrow = row + 3;
-        int nilcol = col - 4; // shift left
-        draw_nil(c, nilrow, nilcol);
-    }
-
-    // right child
-    if (n->right != NIL) {
-        int crow = n->right->y * 3;
-        int ccol = n->right->x;
-        draw_connection(c, row, col, crow, ccol);
-        draw_tree(c, n->right);
-    }
-    else {
-        // draw NIL under right
-        int nilrow = row + 3;
-        int len = (int)strlen(label);
-        int nilcol = col + len + 1; // shift right
-        draw_nil(c, nilrow, nilcol);
-    }
-}
-
-/* top-level print */
-void print_tree(Node* root) {
-    if (root == NIL) { printf("(empty tree)\n"); return; }
-
-    layout_counter = 0;
-    max_depth = 0;
-    int spacing = 7; // column spacing between nodes (tune if needed)
-    assign_positions(root, 0, spacing);
-    int cols = (layout_counter + 3) * spacing + 20;
-    int rows = (max_depth + 2) * 3 + 2;
-    Canvas c = make_canvas(rows, cols);
-
-    draw_tree(&c, root);
-    print_canvas(&c);
-    free_canvas(&c);
-}
-
-/* ---------------------- main ---------------------- */
+/* main: 간단한 테스트 */
 int main(void) {
     tree_init();
 
     int keys[] = { 13, 8, 17, 1, 11, 15, 25, 6, 22, 27 };
     int n = sizeof(keys) / sizeof(keys[0]);
 
-    printf("Inserting keys:\n");
+    printf("== INSERT ==\n");
     for (int i = 0; i < n; ++i) {
-        printf("%d ", keys[i]);
         Node* z = new_node(keys[i]);
         rb_insert(&ROOT, z);
     }
-    printf("\n\nTree after insertions:\n\n");
-    print_tree(ROOT);
 
-    /* Example: delete a couple of keys and print */
+    printf("\nTree after insertions:\n");
+    print_tree_by_level(ROOT);
+
     int dels[] = { 8, 17 };
     int dn = sizeof(dels) / sizeof(dels[0]);
+
     for (int i = 0; i < dn; ++i) {
-        int k = dels[i];
-        Node* t = tree_search(ROOT, k);
-        if (t == NIL) printf("\nKey %d not found\n", k);
+        Node* z = tree_search(ROOT, dels[i]);
+        if (z != NIL) {
+            rb_delete(&ROOT, z);
+            printf("\nTree after deleting %d:\n", dels[i]);
+            print_tree_by_level(ROOT);
+        }
         else {
-            rb_delete(&ROOT, t);
-            printf("\nTree after deleting %d:\n\n", k);
-            print_tree(ROOT);
+            printf("\nKey %d not found for deletion.\n", dels[i]);
         }
     }
 
