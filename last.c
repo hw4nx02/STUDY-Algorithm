@@ -15,30 +15,31 @@ int main() {
     fgets(input, sizeof(input), stdin);
 
     // 복소수 구조체로 정리
-    int plusIdx, iIdx = 0;
-    for (int i = 0; i < SIZE; i++) {
+    int plusIdx = -1, iIdx = -1;
+    int len = strlen(input);
+    for (int i = 0; i < len; i++) {
         if (input[i] == '+') plusIdx = i;
-        if (input[i] == 'i') {
+        else if (input[i] == 'i') {
             iIdx = i;
             break;
         }
     }
-    complex c;
-    c.real = 0;
-    c.imagin = 0;
+
+    complex c = { 0, 0};
     for (int i = 0; i < plusIdx - 1; i++) {
-        c.real = 10 * c.real + (input[i] - 48);
+        c.real = 10 * c.real + (input[i] - '0');
     }
     for (int i = plusIdx + 2; i < iIdx; i++) {
-        c.imagin = 10 * c.imagin + (input[i] - 48);
+        c.imagin = 10 * c.imagin + (input[i] - '0');
     }
 
-    // 계산
+    // 유효성 검사
     if (c.real == 0 || c.imagin == 0) { // 범위를 벗어나면 -1 출력
         printf("\n-1");
         return 0;
     }
 
+    // 계산
     int b = c.imagin * c.imagin;
     int a = c.real;
     int r = 1;
@@ -47,12 +48,9 @@ int main() {
         b *= b;
         a /= 2;
     }
-    int ir = -1;
-    if (a%2 == 0) {
-        ir = 1;
-    }
+    int sign = (a%2 == 0)? 1: -1;
 
     // 출력
     printf("\nreal: %d / imagin: %d", c.real, c.imagin);
-    printf("\nresult: %d", b * r * ir);
+    printf("\nresult: %d", b * r * sign);
 }
