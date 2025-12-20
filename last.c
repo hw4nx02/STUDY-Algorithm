@@ -2,11 +2,24 @@
 #include <string.h>
 #define SIZE 1024
 
-/* 복소수 구조체 */
+/** 복소수 구조체 */
 typedef struct _complex {
     int real; // 실수부
     int imagin; // 허수부
 } complex;
+
+/** 거듭제곱 계산 */
+long long power(int base, int exp) {
+    // 계산
+    long long result = 1;
+    while (exp > 0) {
+        if (exp%2 == 1) result *= base;
+        base *= base;
+        exp /= 2;
+    }
+
+    return result;
+}
 
 int main() {
     // 사용자 입력
@@ -34,23 +47,16 @@ int main() {
     }
 
     // 유효성 검사
-    if (c.real == 0 || c.imagin == 0) { // 범위를 벗어나면 -1 출력
-        printf("\n-1");
+    if (c.real <= 0 || c.imagin <= 0) { // 범위를 벗어나면 -1 출력
+        printf("\nresult: -1");        
         return 0;
     }
-
     // 계산
-    int b = c.imagin * c.imagin;
-    int a = c.real;
-    int r = 1;
-    while (a > 1) {
-        if (a%2 == 1) r *= b;
-        b *= b;
-        a /= 2;
-    }
-    int sign = (a%2 == 0)? 1: -1;
+    long long result = power(c.imagin, 2 * c.real);
+    int sign = (c.real % 2 == 0)? 1: -1;
+    result *= sign;
 
     // 출력
     printf("\nreal: %d / imagin: %d", c.real, c.imagin);
-    printf("\nresult: %d", b * r * sign);
+    printf("\nresult: %lld", result);
 }
